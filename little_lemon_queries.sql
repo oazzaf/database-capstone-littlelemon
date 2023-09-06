@@ -7,7 +7,7 @@ WHERE Quantity > 2
 
 -- Order details for orders with cost greater than 150
 SELECT
-	c.CustomerID,
+    c.CustomerID,
     c.FullName,
     o.OrderID,
     o.TotalCost,
@@ -23,89 +23,56 @@ INNER JOIN MenuItems mi
 WHERE o.TotalCost > 150
 ORDER BY o.TotalCost;
 
--- stored procedure to get the order with the max quantity 
+-- Stored procedure to get the order with the max quantity 
 CREATE PROCEDURE GetMaxQuantity()  
-SELECT MAX(Quantity) AS "Max Quantity in Order"
-FROM Orders;
+AS
+BEGIN
+    SELECT MAX(Quantity) AS "Max Quantity in Order"
+    FROM Orders;
+END;
 
+-- Call the GetMaxQuantity procedure
 CALL GetMaxQuantity();
 
--- prepared statement to get order details using user input order id
+-- Prepared statement to get order details using user input order id
 PREPARE GetOrderDetail 
 FROM 'SELECT OrderID, Quantity, TotalCost FROM Orders WHERE OrderID = ?';
-
 SET @id = 1;
 EXECUTE GetOrderDetail USING @id;
 
--- stored procedure to cancel a booking
-DROP procedure CancelBooking;
+-- Stored procedure to manage a booking (Add, Update, Cancel)
 DELIMITER //
-CREATE PROCEDURE CancelBooking(IN CancelID INT)
+CREATE PROCEDURE ManageBooking(
+    IN action VARCHAR(10), 
+    IN bookingID INT, 
+    IN bookingDate DATE NULL, 
+    IN tableNumber INT NULL, 
+    IN customerID INT NULL, 
+    IN employeeID INT NULL
+)
 BEGIN
-DELETE FROM Bookings WHERE BookingID = CancelID;
-SELECT CONCAT("Order ",CancelID, " is cancelled.") AS Confirmation FROM Bookings;
-END//
-DELIMITER ;
-
-CALL CancelBooking(5);
-
--- update booking procedure
-CREATE PROCEDURE UpdateBooking(IN UpdateID INT, IN TableNo INT)
-UPDATE Bookings
-SET TableNumber = TableNo
-WHERE BookingID = UpdateID;
-
-CALL UpdateBooking(6, 1);
-
-SELECT * FROM Bookings;
-DROP PROCEDURE AddBooking;
--- a procedure to add a booking
-DELIMITER //
-CREATE PROCEDURE AddBooking (IN AddBookingID INT, IN AddBookingDate DATE, IN AddTableNo INT, IN AddCustomerID INT, IN AddEmployeeNum INT)
-BEGIN
-INSERT INTO Bookings (BookingID, BookingDate, TableNumber, CustomerID, EmployeeID)
-VALUES (AddBookingID, AddBookingDate, AddTableNo, AddCustomerID, AddEmployeeNum);
-SELECT CONCAT("New Booking ID ", AddBookingID, " Added.") AS Confirmation;
-END//
-DELIMITER ;
-
--- call the procedure 
-CALL AddBooking(5, "2022-12-30", 4, 3, 1);
-
-DELIMITER //
-CREATE PROCEDURE MakeBooking (booking_id INT, customer_id INT, table_no int, booking_date date)
-BEGIN
-INSERT INTO Bookings (BookingID, BookingDate, TableNumber, CustomerID) 
-VALUES (booking_id, booking_date, table_no, customer_id);
-SELECT "New booking added" AS "Confirmation";
-END//
-DELIMITER ;
-
-CALL MakeBooking(5, "2022-12-30", 4, 3, 1);
-
--- check the bookings table
-SELECT * FROM Bookings;
-
--- a procedure to check whether a table in the restaurant is already booked
-DROP PROCEDURE IF EXISTS CheckBooking;
-
--- a stored procedure to check if a table is booked on a given date
-DELIMITER //
-CREATE PROCEDURE CheckBooking (booking_date DATE, table_number INT)
-BEGIN
-DECLARE bookedTable INT DEFAULT 0;
- SELECT COUNT(bookedTable)
-    INTO bookedTable
-    FROM Bookings WHERE BookingDate = booking_date and TableNumber = table_number;
-    IF bookedTable > 0 THEN
-      SELECT CONCAT( "Table ", table_number, " is already booked.") AS "Booking status";
-      ELSE 
-      SELECT CONCAT( "Table ", table_number, " is not booked.") AS "Booking status";
+    IF action = 'ADD' THEN
+        INSERT INTO Bookings (BookingID, BookingDate, TableNumber, CustomerID, EmployeeID) 
+        VALUES (bookingID, bookingDate, tableNumber, customerID, employeeID);
+        SELECT CONCAT("New Booking ID ", bookingID, " Added.") AS Confirmation;
+    ELSEIF action = 'UPDATE' THEN
+        UPDATE Bookings 
+        SET BookingDate = bookingDate, TableNumber = tableNumber, CustomerID = customerID, EmployeeID = employeeID 
+        WHERE BookingID = bookingID;
+        SELECT CONCAT("Booking ID ", bookingID, " Updated.") AS Confirmation;
+    ELSEIF action = 'CANCEL' THEN
+        DELETE FROM Bookings WHERE BookingID = bookingID;
+        SELECT CONCAT("Booking ID ", bookingID, " Cancelled.") AS Confirmation;
+    ELSE
+        SELECT "Invalid Action. Use ADD, UPDATE, or CANCEL." AS Confirmation;
     END IF;
 END//
 DELIMITER ;
 
-CALL CheckBooking("2022-12-30", 5);
+-- Call the ManageBooking procedure for various actions
+CALL ManageBooking('ADD', 7, '2023-12-01', 3, 2, 1);    -- To add a new booking
+CALL ManageBooking('UPDATE', 7, '2023-12-02', 4, 2, 1); -- To update an existing booking
+CALL ManageBooking('CANCEL', 7, NULL, NULL, NULL, NULL); -- To cancel a booking
 
--- check Bookings table
+-- Check the Bookings table
 SELECT * FROM Bookings;
